@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>汉字笔顺动态演示</title>
+	<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+	<style>
+		body {
+			font-family: "KaiTi", "楷体", sans-serif;
+			background-color: #f4f7f6;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			padding-top: 40px;
+			margin: 0;
+		}
+
+		h2 {
+			color: #333;
+			margin-bottom: 20px;
+		}
+
+		/* 控制区 */
+		.controls {
+			margin-bottom: 30px;
+			display: flex;
+			gap: 10px;
+			align-items: center;
+		}
+
+		input {
+			padding: 10px;
+			font-size: 18px;
+			width: 150px;
+			border: 2px solid #ddd;
+			border-radius: 8px;
+			text-align: center;
+		}
+
+		button {
+			padding: 10px 20px;
+			font-size: 16px;
+			cursor: pointer;
+			background-color: #ff5e5e;
+			color: white;
+			border: none;
+			border-radius: 8px;
+			transition: all 0.2s;
+		}
+
+		button:hover { background-color: #e04d4d; }
+		
+		button.secondary { background-color: #4CAF50; }
+		button.secondary:hover { background-color: #45a049; }
+
+		/* 田字格容器 */
+		.grid-container {
+			position: relative;
+			width: 300px;
+			height: 300px;
+			background-color: #fff;
+			box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+			margin-bottom: 20px;
+		}
+
+		/* 绘制田字格红线 (CSS实现) */
+		.grid-bg {
+			position: absolute;
+			top: 0; left: 0;
+			width: 100%;
+			height: 100%;
+			border: 2px solid #ff5e5e;
+			box-sizing: border-box;
+			pointer-events: none; /* 让点击事件穿透到书写层 */
+			z-index: 0;
+		}
+		
+		/* 横虚线 */
+		.grid-bg::before {
+			content: '';
+			position: absolute;
+			top: 50%; left: 0;
+			width: 100%; height: 1px;
+			border-top: 1px dashed #ff5e5e;
+		}
+		
+		/* 竖虚线 */
+		.grid-bg::after {
+			content: '';
+			position: absolute;
+			left: 50%; top: 0;
+			height: 100%; width: 1px;
+			border-left: 1px dashed #ff5e5e;
+		}
+
+		/* 汉字绘制层 */
+		#character-target {
+			position: relative;
+			z-index: 1;
+		}
+		
+		.status-text {
+			margin-top: 10px;
+			color: #666;
+			font-size: 14px;
+		}
+	</style>
+</head>
+<body>
+
+	<h2>汉字笔顺演示 & 练习</h2>
+
+	<div class="controls">
+		<input type="text" id="charInput" value="我" maxlength="1" placeholder="输入一个字">
+		<button onclick="updateChar()">生成</button>
+	</div>
+
+	<div class="grid-container">
+		<div class="grid-bg"></div>
+		<div id="character-target"></div>
+	</div>
+
+	<div class="controls">
+		<button class="secondary" onclick="animateChar()">🎥 演示笔顺</button>
+		<button class="secondary" onclick="startQuiz()">✍️ 我要练习</button>
+	</div>
+	
+	<div id="status" class="status-text">输入汉字后点击“生成”</div>
+
+	<script>
+		let writer = null;
+
+		function updateChar() {
+			const char = document.getElementById('charInput').value;
+			const targetDiv = document.getElementById('character-target');
+			const statusDiv = document.getElementById('status');
+
+			if (!char || !/[\u4e00-\u9fa5]/.test(char)) {
+				alert("请输入一个中文字符！");
+				return;
+			}
+
+			targetDiv.innerHTML = ''; // 清空旧的字
+			statusDiv.innerText = "加载中...";
+
+			// 初始化 HanziWriter
+			writer = HanziWriter.create('character-target', char, {
+				width: 300,
+				height: 300,
+				padding: 20,
+				showOutline: true,      // 显示灰色轮廓
+				strokeAnimationSpeed: 1.5, // 动画速度
+				delayBetweenStrokes: 200, // 每一笔之间的停顿
+				strokeColor: '#333',    // 笔画颜色
+				radicalColor: '#333',   // 部首颜色 (如需区分可改色)
+				outlineColor: '#ddd',   // 轮廓颜色
+				drawingWidth: 20,       // 笔画粗细
+				showCharacter: true     // 初始显示完整字
+			});
+
+			// 监听加载完成
+			// HanziWriter 是异步加载笔画数据的
+			setTimeout(() => {
+				 statusDiv.innerText = `当前汉字：${char}`;
+				 // 默认自动演示一次
+				 writer.animateCharacter();
+			}, 500);
+		}
+
+		function animateChar() {
+			if (writer) {
+				document.getElementById('status').innerText = "正在演示笔顺...";
+				writer.animateCharacter({
+					onComplete: function() {
+						document.getElementById('status').innerText = "演示结束";
+					}
+				});
+			}
+		}
+
+		function startQuiz() {
+			if (writer) {
+				document.getElementById('status').innerText = "请用鼠标/手指在格子里书写...";
+				writer.quiz({
+					onMistake: function(strokeData) {
+						document.getElementById('status').innerText = "哎呀，笔顺错啦！请重试。";
+					},
+					onCorrectStroke: function(strokeData) {
+						document.getElementById('status').innerText = `很棒！这一笔写对了 (剩余 ${strokeData.strokesRemaining} 笔)`;
+					},
+					onComplete: function(summaryData) {
+						document.getElementById('status').innerText = `🎉 恭喜！你写完了！`;
+					}
+				});
+			}
+		}
+
+		// 页面加载时默认加载一个字
+		window.onload = updateChar;
+	</script>
+</body>
+</html>
